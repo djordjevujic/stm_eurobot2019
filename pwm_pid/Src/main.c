@@ -46,7 +46,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "parser.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,7 +58,7 @@
 /* USER CODE BEGIN PD */
 #define DEG_TO_INC_COEFF 22.45
 #define INC_TO_DEG_COEFF 0.100222717
-
+#define ERROR_TOLERANCE_INC 10
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,11 +69,16 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+static float Ts = 0.001; //Sampling period
 static float kp = 2.5;
-static uint32_t error = 0;
-static float angle = 60.0;
+static float ki = 0.0;
+static int32_t error = 0;
+static float angle = 30.0;
 static uint32_t reference = 3952;
 static const unsigned int pwm_period = 1050;
+static uint32_t u = 0;
+static uint32_t ui = 0; //Integration part of control
+static uint8_t finish_flag = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -135,18 +140,52 @@ int main(void) {
 	unsigned int cnts_old = 0;
 	unsigned int pwm = 0;
 	float coeff = 0.1002227171;
+	uint32_t primer = 1;
+	uint8_t uart_receive_buff[50];
+	uint8_t uart_rec_buff_offset = 0;
+	uint8_t msg[20] = ""; // @TODO Delete later
 
-	reference = (uint32_t) (angle * DEG_TO_INC_COEFF);
+	reference = (int32_t) (angle * DEG_TO_INC_COEFF);
+
+	for (int i = 0; i < 50; i++) {
+		uart_receive_buff[i] = 0;
+	}
 
 	while (1) {
 
-		snprintf(p, sizeof(p), "\n\r%d", error);
-		HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+		/*
+		 HAL_UART_Transmit(&huart2, &primer, sizeof(primer), 50);
+		 HAL_Delay(1000);
+		 */
 
-		snprintf(a, sizeof(a), "\n\r%f", ((float) error * INC_TO_DEG_COEFF));
-		HAL_UART_Transmit(&huart2, a, sizeof(a), 50);
+		//snprintf(p, sizeof(p), "\n\r%d", error);
+		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+		//snprintf(a, sizeof(a), "\n\r%f", ((float) error * INC_TO_DEG_COEFF));
+		//HAL_UART_Transmit(&huart2, a, sizeof(a), 50);
+		//snprintf(c, sizeof(c), "\n\rcnt: %d", TIM1->CNT);
+		//HAL_UART_Transmit(&huart2, c, sizeof(c), 50);
+		if (HAL_UART_Receive(&huart2, uart_receive_buff + uart_rec_buff_offset,
+				1, 20) == HAL_OK) {
 
-		HAL_Delay(100);
+			HAL_UART_Transmit(&huart2, uart_receive_buff + uart_rec_buff_offset,
+					1, 50);
+
+			if (uart_receive_buff[uart_rec_buff_offset] == '\n') {
+
+				uart_receive_buff[uart_rec_buff_offset] = '\0';
+				msg_parse(uart_receive_buff);
+				strcpy(msg, uart_receive_buff);
+				uart_rec_buff_offset = 0;
+				//HAL_UART_Transmit(&huart2, msg, sizeof(msg), 50);
+
+			}
+
+			else
+				uart_rec_buff_offset++;
+		}
+		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+
+		//HAL_Delay(200);
 
 		/*
 		 __HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0);
@@ -217,30 +256,54 @@ void SystemClock_Config(void) {
 /* USER CODE BEGIN 4 */
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	static uint32_t u = 0;
-	static uint32_t ui=0
 
-	static char msg[20] = "Error is \n\r";
+	static char msg[20] = "";
 
 	if (htim->Instance == TIM3) {
 		//HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
 		uint32_t count = 0;
 
 		count = __HAL_TIM_GET_COUNTER(&htim1);
+		//__HAL_TIM_SET_COUNTER(&htim1, 0);
+
+		//count += TIM1->CNT;
+		//TIM1->CNT = 0;
+
+		//snprintf(p, sizeof(p), "\n\r%d", error);
+		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
 
 		error = reference - count;
 
-		u = (uint32_t) (kp * error);
+		if (error < 0)
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
+		else if (error > 0)
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+
+		ui = ui + (uint32_t) (ki * Ts * abs(error));
+
+		if (ui > 300)
+			ui = 300;
+
+		u = (uint32_t) (kp * abs(error)) + ui;
 
 		//anti wind-up
 		if (u > pwm_period)
 			u = pwm_period;
 
+		if (u < 100) {
+			u = 0;
+			finish_flag = 1;
+		}
+
+		//if (abs(error) > ERROR_TOLERANCE_INC)
 		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, u);
+		//else
+		//	__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0);
 
 	}
 }
 
+//static inline uint32_t abs
 /* USER CODE END 4 */
 
 /**

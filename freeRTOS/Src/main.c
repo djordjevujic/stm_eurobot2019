@@ -80,7 +80,18 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/*
+void Led_GateKeeper(void *pvParameters)
+{
+	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
 
+	for(;;)
+	{
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		vTaskDelay(xDelay);
+	}
+}
+*/
 /* USER CODE END 0 */
 
 /**
@@ -113,8 +124,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
-  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  //xTaskCreate(Led_GateKeeper,(const char* const)"led_gate", configMINIMAL_STACK_SIZE, 0, 2, 0);
 
   /* USER CODE END 2 */
 

@@ -46,7 +46,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "parser.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
