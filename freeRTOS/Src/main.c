@@ -80,7 +80,7 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*
+
 void Led_GateKeeper(void *pvParameters)
 {
 	TickType_t xDelay = 500 / portTICK_PERIOD_MS;
@@ -91,7 +91,7 @@ void Led_GateKeeper(void *pvParameters)
 		vTaskDelay(xDelay);
 	}
 }
-*/
+
 /* USER CODE END 0 */
 
 /**
