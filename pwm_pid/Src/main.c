@@ -56,9 +56,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DEG_TO_INC_COEFF 22.45
-#define INC_TO_DEG_COEFF 0.100222717
+#define DEG_TO_INC_COEFF 9.977333
+#define INC_TO_DEG_COEFF 0.1002271816
 #define ERROR_TOLERANCE_INC 10
+#define DEFAULT_ENC_COUNTER_VALUE 20000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,15 +70,18 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-static float Ts = 0.001; //Sampling period
-static float kp = 2.5;
-static float ki = 0.0;
-static int32_t error = 0;
-static float angle = 30.0;
-static uint32_t reference = 3952;
+static volatile int32_t position = 0;
+static volatile int32_t error = 0;
+static volatile int32_t reference = 3592;
+static volatile int32_t temp = 0;
+static const float Ts = 0.001; //Sampling period
+static volatile float kp = 2.0;
+static volatile float Ti = 1000.0;
+static volatile float ki = 0;
+static float angle = 720;
 static const unsigned int pwm_period = 1050;
-static uint32_t u = 0;
-static uint32_t ui = 0; //Integration part of control
+static int32_t u = 0;
+static int32_t ui = 0; //Integration part of control
 static uint8_t finish_flag = 0;
 /* USER CODE END PV */
 
@@ -123,11 +127,20 @@ int main(void) {
 	MX_TIM1_Init();
 	MX_TIM2_Init();
 	MX_TIM3_Init();
+
 	/* USER CODE BEGIN 2 */
-	HAL_TIM_Base_Start_IT(&htim3);
 	HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+	// Set Encoder count to middle value
+	TIM1->CNT = DEFAULT_ENC_COUNTER_VALUE;
+	temp = TIM1->CNT;
+
+	ki = 0;	//kp / Ti;
+
+	//Enable regulation interrupt
+	HAL_TIM_Base_Start_IT(&htim3);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -135,12 +148,7 @@ int main(void) {
 	char p[30] = "";
 	char a[30] = "";
 	char c[30] = "";
-	char circle[10] = "\n\rcircle";
-	unsigned int cnts = 0;
-	unsigned int cnts_old = 0;
-	unsigned int pwm = 0;
-	float coeff = 0.1002227171;
-	uint32_t primer = 1;
+
 	uint8_t uart_receive_buff[50];
 	uint8_t uart_rec_buff_offset = 0;
 	uint8_t msg[20] = ""; // @TODO Delete later
@@ -158,51 +166,52 @@ int main(void) {
 		 HAL_Delay(1000);
 		 */
 
-		//snprintf(p, sizeof(p), "\n\r%d", error);
-		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
-		//snprintf(a, sizeof(a), "\n\r%f", ((float) error * INC_TO_DEG_COEFF));
-		//HAL_UART_Transmit(&huart2, a, sizeof(a), 50);
-		//snprintf(c, sizeof(c), "\n\rcnt: %d", TIM1->CNT);
-		//HAL_UART_Transmit(&huart2, c, sizeof(c), 50);
-		if (HAL_UART_Receive(&huart2, uart_receive_buff + uart_rec_buff_offset,
-				1, 20) == HAL_OK) {
+		snprintf(p, sizeof(p), "\n\ru: %d", u);
+		HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+		snprintf(a, sizeof(a), "\n\r%f", ((float) error * INC_TO_DEG_COEFF));
+		HAL_UART_Transmit(&huart2, a, sizeof(a), 50);
+		snprintf(c, sizeof(c), "\n\rcnt: %d", TIM1->CNT);
+		HAL_UART_Transmit(&huart2, c, sizeof(c), 50);
 
-			HAL_UART_Transmit(&huart2, uart_receive_buff + uart_rec_buff_offset,
-					1, 50);
-
-			if (uart_receive_buff[uart_rec_buff_offset] == '\n') {
-
-				uart_receive_buff[uart_rec_buff_offset] = '\0';
-				msg_parse(uart_receive_buff);
-				strcpy(msg, uart_receive_buff);
-				uart_rec_buff_offset = 0;
-				//HAL_UART_Transmit(&huart2, msg, sizeof(msg), 50);
-
-			}
-
-			else
-				uart_rec_buff_offset++;
-		}
-		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
-
-		//HAL_Delay(200);
-
+		HAL_Delay(500);
 		/*
-		 __HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0);
-		 //test this
+		 if (HAL_UART_Receive(&huart2, uart_receive_buff + uart_rec_buff_offset,
+		 1, 20) == HAL_OK) {
+
+		 HAL_UART_Transmit(&huart2, uart_receive_buff + uart_rec_buff_offset,
+		 1, 50);
+
+		 if (uart_receive_buff[uart_rec_buff_offset] == '\n') {
+
+		 uart_receive_buff[uart_rec_buff_offset] = '\0';
+		 //msg_parse(uart_receive_buff);
+		 strcpy(msg, uart_receive_buff);
+		 uart_rec_buff_offset = 0;
+		 //HAL_UART_Transmit(&huart2, msg, sizeof(msg), 50);
+
+		 }
+
+		 else
+		 uart_rec_buff_offset++;
+		 }
+		 */
+		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+
+		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
+		//__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0);
+		//test this
+		/*
 		 cnts = __HAL_TIM_GET_COUNTER(&htim1);
 
 		 if (cnts != cnts_old) {
-		 snprintf(p, sizeof(p), "%d\n\r", cnts);
+		 snprintf(p, sizeof(p), "cnts: %d\n\r", cnts);
 
 		 HAL_UART_Transmit(&huart2, p, strlen(p), 50);
-		 HAL_Delay(100);
 
-		 if (cnts % (3592) == 0)
-		 HAL_UART_Transmit(&huart2, circle, sizeof(circle), 50);
 
 		 cnts_old = cnts;
 		 }
+		 HAL_Delay(200);
 		 */
 
 		/* USER CODE END WHILE */
@@ -261,42 +270,50 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim->Instance == TIM3) {
 		//HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-		uint32_t count = 0;
 
-		count = __HAL_TIM_GET_COUNTER(&htim1);
+		int32_t count = 0;
+
+		//count = __HAL_TIM_GET_COUNTER(&htim1);
 		//__HAL_TIM_SET_COUNTER(&htim1, 0);
 
-		//count += TIM1->CNT;
+		count = __HAL_TIM_GET_COUNTER(&htim1);
+		__HAL_TIM_SET_COUNTER(&htim1, DEFAULT_ENC_COUNTER_VALUE);
+
+		count = count - DEFAULT_ENC_COUNTER_VALUE;
+
 		//TIM1->CNT = 0;
+
+		position += count;
 
 		//snprintf(p, sizeof(p), "\n\r%d", error);
 		//HAL_UART_Transmit(&huart2, p, sizeof(p), 50);
 
-		error = reference - count;
+		error = reference - position;
+		/*
 
-		if (error < 0)
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
-		else if (error > 0)
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+		 */
+		ui = ui + (int32_t) (ki * Ts * error);
 
-		ui = ui + (uint32_t) (ki * Ts * abs(error));
+		if (ui > 200)
+			ui = 200;
 
-		if (ui > 300)
-			ui = 300;
+		u = (int32_t) (kp * error) + ui;
 
-		u = (uint32_t) (kp * abs(error)) + ui;
+		if (u > 800)
+			u = 800;
 
-		//anti wind-up
-		if (u > pwm_period)
-			u = pwm_period;
-
-		if (u < 100) {
+		if (u < 30) {
 			u = 0;
 			finish_flag = 1;
 		}
 
+		// Direction
+		if (u < 0)
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
+		else if (u > 0)
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
 		//if (abs(error) > ERROR_TOLERANCE_INC)
-		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, u);
+		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, abs(u));
 		//else
 		//	__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0);
 
