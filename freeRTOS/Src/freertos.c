@@ -53,10 +53,11 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-#include "usart.h"
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */     
+#include "tim.h"
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,6 +77,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+static float Ts = 0.001; //Sampling period
+static float kp = 2.0;
+static float ki = 0.0;
+static int32_t error = 0;
+static float angle = 30.0;
+static uint32_t reference = 3952;
+
 static volatile int16_t count = 0;
 
 osThreadId Task3Handle;
@@ -95,50 +103,50 @@ void StartTask2(void const * argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* Create the mutex(es) */
-	/* definition and creation of UartMutex */
-	osMutexDef(UartMutex);
-	UartMutexHandle = osMutexCreate(osMutex(UartMutex));
+  /* Create the mutex(es) */
+  /* definition and creation of UartMutex */
+  osMutexDef(UartMutex);
+  UartMutexHandle = osMutexCreate(osMutex(UartMutex));
 
-	/* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-	/* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-	/* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-	/* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-	/* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-	/* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-	/* Create the thread(s) */
-	/* definition and creation of defaultTask */
-	osThreadDef(defaultTask, RegulationTask, osPriorityNormal, 0, 128);
-	defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+  /* Create the thread(s) */
+  /* definition and creation of defaultTask */
+  osThreadDef(defaultTask, RegulationTask, osPriorityNormal, 0, 128);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
-	/* definition and creation of Task2 */
-	osThreadDef(Task2, StartTask2, osPriorityIdle, 0, 128);
-	Task2Handle = osThreadCreate(osThread(Task2), NULL);
+  /* definition and creation of Task2 */
+  osThreadDef(Task2, StartTask2, osPriorityIdle, 0, 128);
+  Task2Handle = osThreadCreate(osThread(Task2), NULL);
 
-	/* USER CODE BEGIN RTOS_THREADS */
+  /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
 	osThreadDef(Task3, Thread3, osPriorityIdle, 0, 128);
 	Task3Handle = osThreadCreate(osThread(Task3), NULL);
-	/* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
-	/* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
-	/* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 }
 
 /* USER CODE BEGIN Header_RegulationTask */
@@ -148,8 +156,10 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_RegulationTask */
-void RegulationTask(void const * argument) {
-	/* USER CODE BEGIN RegulationTask */
+void RegulationTask(void const * argument)
+{
+
+  /* USER CODE BEGIN RegulationTask */
 	TickType_t xLastWakeTime;
 	const TickType_t xFrequency = 1;
 
@@ -159,17 +169,16 @@ void RegulationTask(void const * argument) {
 	/* Infinite loop */
 	for (;;) {
 
-		count++;
-//		if(count == 1)
+//		count++;
+//		if(count == 800)
 //		{
-//			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+//			//HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+//			count = 0;
 //		}
+//		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, count);
 
-		if(count == 500)
-		{
-			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-			count = 0;
-		}
+		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 600);
+
 
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
         //xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
@@ -177,7 +186,7 @@ void RegulationTask(void const * argument) {
 		//xSemaphoreGive(UartMutexHandle);
 
 	}
-	/* USER CODE END RegulationTask */
+  /* USER CODE END RegulationTask */
 }
 
 /* USER CODE BEGIN Header_StartTask2 */
@@ -187,8 +196,9 @@ void RegulationTask(void const * argument) {
  * @retval None
  */
 /* USER CODE END Header_StartTask2 */
-void StartTask2(void const * argument) {
-	/* USER CODE BEGIN StartTask2 */
+void StartTask2(void const * argument)
+{
+  /* USER CODE BEGIN StartTask2 */
 
 	uint8_t txData[20] = "Hello from Thread2\r\n";
 
@@ -200,7 +210,7 @@ void StartTask2(void const * argument) {
 
 		osDelay(1000);
 	}
-	/* USER CODE END StartTask2 */
+  /* USER CODE END StartTask2 */
 }
 
 /* Private application code --------------------------------------------------*/

@@ -78,8 +78,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DIR_Pin GPIO_PIN_6
-#define DIR_GPIO_Port GPIOA
+#define PWM_MOTOR1_Pin GPIO_PIN_5
+#define PWM_MOTOR1_GPIO_Port GPIOA
+#define DIR_MOTOR1_Pin GPIO_PIN_6
+#define DIR_MOTOR1_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
