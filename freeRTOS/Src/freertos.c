@@ -58,6 +58,7 @@
 /* USER CODE BEGIN Includes */     
 #include "tim.h"
 #include "usart.h"
+#include "message.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,6 +89,7 @@ static volatile int16_t count = 0;
 
 osThreadId Task3Handle;
 /* USER CODE END Variables */
+osThreadId MsgHandle;
 osThreadId defaultTaskHandle;
 osThreadId Task2Handle;
 osMutexId UartMutexHandle;
@@ -95,6 +97,7 @@ osMutexId UartMutexHandle;
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 void Thread3(void const * argument);
+void threadActMessageRead(void const * argument);
 /* USER CODE END FunctionPrototypes */
 
 void RegulationTask(void const * argument);
@@ -142,6 +145,9 @@ void MX_FREERTOS_Init(void) {
 	/* add threads, ... */
 	osThreadDef(Task3, Thread3, osPriorityIdle, 0, 128);
 	Task3Handle = osThreadCreate(osThread(Task3), NULL);
+
+	osThreadDef(msgActRead, threadActMessageRead, osPriorityIdle, 0, 128);
+	MsgHandle = osThreadCreate(osThread(msgActRead), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -177,7 +183,7 @@ void RegulationTask(void const * argument)
 //		}
 //		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, count);
 
-		__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 600);
+		//__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 600);
 
 
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -203,11 +209,11 @@ void StartTask2(void const * argument)
 	uint8_t txData[20] = "Hello from Thread2\r\n";
 
 	for (;;) {
-
+/*
 		xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
 		HAL_UART_Transmit(&huart2, txData, 20, 5);
 		xSemaphoreGive(UartMutexHandle);
-
+*/
 		osDelay(1000);
 	}
   /* USER CODE END StartTask2 */
@@ -215,16 +221,31 @@ void StartTask2(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+// Message receive task
+
+void threadActMessageRead(void const * argument)
+{
+
+	//readMessage();
+
+	for (;;) {
+		message_read();
+	}
+
+}
+
+
 void Thread3(void const * argument) {
 
 	uint8_t txData[20] = "Hello from Thread3\r\n";
 
 	for (;;) {
-
+/*
 		xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
 		HAL_UART_Transmit(&huart2, txData, 20, 5);
 		xSemaphoreGive(UartMutexHandle);
-
+*/
 		osDelay(1000);
 	}
 	/* USER CODE END StartTask2 */
