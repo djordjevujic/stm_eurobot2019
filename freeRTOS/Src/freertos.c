@@ -89,19 +89,22 @@ static volatile int16_t count = 0;
 
 osThreadId Task3Handle;
 /* USER CODE END Variables */
-osThreadId MsgHandle;
 osThreadId defaultTaskHandle;
 osThreadId Task2Handle;
+osThreadId MessageReadTaskHandle;
+osThreadId RegDataSendTaskHandle;
 osMutexId UartMutexHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 void Thread3(void const * argument);
-void threadActMessageRead(void const * argument);
+void threadMessageRead(void const * argument);
 /* USER CODE END FunctionPrototypes */
 
 void RegulationTask(void const * argument);
 void StartTask2(void const * argument);
+void threadMessageRead(void const * argument);
+void StartTask04(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -138,16 +141,22 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of Task2 */
-  osThreadDef(Task2, StartTask2, osPriorityIdle, 0, 128);
+  osThreadDef(Task2, StartTask2, osPriorityLow, 0, 128);
   Task2Handle = osThreadCreate(osThread(Task2), NULL);
+
+  /* definition and creation of MessageReadTask */
+  osThreadDef(MessageReadTask, threadMessageRead, osPriorityIdle, 0, 256);
+  MessageReadTaskHandle = osThreadCreate(osThread(MessageReadTask), NULL);
+
+  /* definition and creation of RegDataSendTask */
+  osThreadDef(RegDataSendTask, StartTask04, osPriorityIdle, 0, 1024);
+  RegDataSendTaskHandle = osThreadCreate(osThread(RegDataSendTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
 	osThreadDef(Task3, Thread3, osPriorityIdle, 0, 128);
 	Task3Handle = osThreadCreate(osThread(Task3), NULL);
 
-	osThreadDef(msgActRead, threadActMessageRead, osPriorityIdle, 0, 128);
-	MsgHandle = osThreadCreate(osThread(msgActRead), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -171,9 +180,10 @@ void RegulationTask(void const * argument)
 
 	uint8_t txData[20] = "Hello from Thread1\r\n";
 
-    xLastWakeTime = xTaskGetTickCount();
+	xLastWakeTime = xTaskGetTickCount();
 	/* Infinite loop */
-	for (;;) {
+	for (;;)
+	{
 
 //		count++;
 //		if(count == 800)
@@ -185,9 +195,8 @@ void RegulationTask(void const * argument)
 
 		//__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 600);
 
-
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
-        //xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
+		//xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
 		//HAL_UART_Transmit(&huart2, txData, 20, 5);
 		//xSemaphoreGive(UartMutexHandle);
 
@@ -208,47 +217,80 @@ void StartTask2(void const * argument)
 
 	uint8_t txData[20] = "Hello from Thread2\r\n";
 
-	for (;;) {
-/*
-		xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
-		HAL_UART_Transmit(&huart2, txData, 20, 5);
-		xSemaphoreGive(UartMutexHandle);
-*/
+	for (;;)
+	{
+		/*
+		 xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
+		 HAL_UART_Transmit(&huart2, txData, 20, 5);
+		 xSemaphoreGive(UartMutexHandle);
+		 */
 		osDelay(1000);
 	}
   /* USER CODE END StartTask2 */
 }
 
+/* USER CODE BEGIN Header_threadMessageRead */
+/**
+* @brief Function implementing the MessageReadTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_threadMessageRead */
+void threadMessageRead(void const * argument)
+{
+  /* USER CODE BEGIN threadMessageRead */
+  /* Infinite loop */
+  volatile float angle = 0.0;
+  char exStr[10] = "720.0";
+	for(;;)
+  {
+		message_read();
+  }
+  /* USER CODE END threadMessageRead */
+}
+
+/* USER CODE BEGIN Header_StartTask04 */
+/**
+* @brief Function implementing the RegDataSendTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask04 */
+void StartTask04(void const * argument)
+{
+  /* USER CODE BEGIN StartTask04 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTask04 */
+}
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-// Message receive task
-
-void threadActMessageRead(void const * argument)
+void Thread3(void const * argument)
 {
-
-	//readMessage();
-
-	for (;;) {
-		message_read();
-	}
-
-}
-
-
-void Thread3(void const * argument) {
 
 	uint8_t txData[20] = "Hello from Thread3\r\n";
 
-	for (;;) {
-/*
-		xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
-		HAL_UART_Transmit(&huart2, txData, 20, 5);
-		xSemaphoreGive(UartMutexHandle);
-*/
+	for (;;)
+	{
+		/*
+		 xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
+		 HAL_UART_Transmit(&huart2, txData, 20, 5);
+		 xSemaphoreGive(UartMutexHandle);
+		 */
 		osDelay(1000);
 	}
+
 	/* USER CODE END StartTask2 */
+}
+
+osMutexId getUartMutex(void)
+{
+	return UartMutexHandle;
 }
 /* USER CODE END Application */
 

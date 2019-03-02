@@ -19,7 +19,9 @@
 #define MSG_MAX_LENGTH_OF_PARAMETER 10
 
 void message_read(void);
-uint8_t message_parse();
+uint8_t message_parse(void);
 void message_remove_invalid_ch(void); // Removes invalid characters from message
+void message_command_apply(void);
+
 
 #endif /* MESSAGE_H_ */

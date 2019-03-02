@@ -7,28 +7,39 @@
 
 //@TODO Message words handling
 //@TODO Resolve WARNINGS!
-
 #include <string.h>
+#include <stdlib.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "main.h"
 #include "message.h"
-#include "config.h"
+#include "cmsis_os.h"
 
 #ifdef COMMUNICATION_UART
+
 static uint8_t uart_receive_buff[MESSAGE_MAX_LENGTH];
 static uint8_t uart_rec_buff_offset = 0;
 #endif
 
-volatile char parsed[MSG_MAX_NUM_OF_PARAMETERS][MSG_MAX_LENGTH_OF_PARAMETER];
+char parsed[MSG_MAX_NUM_OF_PARAMETERS][MSG_MAX_LENGTH_OF_PARAMETER];
 uint8_t message_words = 0; // Length of incomed message, also included first word as a Message head
-uint8_t const msg_delim[2] = " ";
 
+// Reads command
+// Parses command
+// Command apply
 void message_read(void)
 {
 
 #ifdef COMMUNICATION_UART
 
+	xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+	int8_t receive_success = HAL_UART_Receive(&huart2, uart_receive_buff + uart_rec_buff_offset, 1, 5);
+	xSemaphoreGive(getUartMutex());
+
 	// @TODO: Reduce receiving timeot
-	if (HAL_UART_Receive(&huart2, uart_receive_buff + uart_rec_buff_offset, 1, 5) == HAL_OK)
+	if (receive_success == HAL_OK)
 	{
 		// If message is too long, alarm the head device and read this message till the end (\n)
 		if (uart_rec_buff_offset == MESSAGE_MAX_LENGTH)
@@ -42,52 +53,84 @@ void message_read(void)
 			{
 				uart_receive_buff[uart_rec_buff_offset] = '\0';
 
-				message_parse(uart_receive_buff);
-
+				message_parse();
+				message_command_apply();
 				uart_rec_buff_offset = 0; //Reset offset, and get ready for next message
-
-				//@TODO This is only for testing, delete later
-				//strcpy(msg, uart_receive_buff);
-				//HAL_UART_Transmit(&huart2, uart_receive_buff, sizeof(uart_receive_buff), 10);
-
 			}
 
 			else
+			{
 				uart_rec_buff_offset++;
+			}
 		}
 	}
 #endif
+}
+
+void message_command_apply(void)
+{
+	float angle = 0;
+
+	if (strcmp(parsed[0], "SCARATEST") == 0)
+	{
+		if (strcmp(parsed[1], "MOTOR_OUT") == 0)
+		{
+			angle = atof(parsed[2]);
+
+//			snprintf(msg, sizeof(msg), "%.2f\n\r", angle);
+//			xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+//			HAL_UART_Transmit(&huart2, msg, sizeof(msg), 10);
+//			xSemaphoreGive(getUartMutex());
+
+			// give command to regulator to start positioning
+			// give command to regulator to log data
+		}
+	}
 }
 
 // Parsing message to words, and putting parsed words into variable parsed[][]
 // Return: Number of words in message, also included first word which is message head
 uint8_t message_parse(void)
 {
-	char* token = strtok(uart_receive_buff, msg_delim);
+	char* token = strtok(uart_receive_buff, MESSAGE_DELIMITER);
 	uint8_t num_of_message_params = 0;
 
-	//token = strtok(uart_receive_buff, MESSAGE_DELIMITER);
+//	for (uint8_t i = 0; i < MSG_MAX_NUM_OF_PARAMETERS; i++)
+//	{
+//		memset(parsed[i], 0, strlen(parsed[i]));
+//	}
 
 	while (token)
 	{
 		strcpy(parsed[num_of_message_params++], token);
 
-		//HAL_UART_Transmit(&huart2, parsed[num_of_message_params-1], sizeof(num_of_message_params-1), 10);
+		xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+		HAL_UART_Transmit(&huart2, parsed[num_of_message_params - 1], sizeof(parsed[num_of_message_params - 1]), 10);
+		xSemaphoreGive(getUartMutex());
 
-		token = strtok(NULL, msg_delim);
+		token = strtok(NULL, MESSAGE_DELIMITER);
 	}
+
+	xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+	HAL_UART_Transmit(&huart2, "\n\r", sizeof('\n\r'), 10);
+	xSemaphoreGive(getUartMutex());
 
 	return num_of_message_params;
 }
+
 // Removes characters from invalid message
-	void message_remove_invalid_ch(void)
+// @TODO test this
+void message_remove_invalid_ch(void)
+{
+	unsigned char msg[30] = "Message length exceeded!\r\n";
+
+	xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+	HAL_UART_Transmit(&huart2, msg, sizeof(msg), 10);
+	xSemaphoreGive(getUartMutex());
+
+	do
 	{
+		HAL_UART_Receive(&huart2, uart_receive_buff, 1, 5);
+	} while (uart_receive_buff[0] != MESSAGE_END_CH);
 
-		HAL_UART_Transmit(&huart2, "Message length exceeded!\r\n", sizeof("Message length exceeded!\r\n"), 10);
-
-		do
-		{
-			HAL_UART_Receive(&huart2, uart_receive_buff, 1, 5);
-		} while (uart_receive_buff[0] != MESSAGE_END_CH);
-
-	}
+}
