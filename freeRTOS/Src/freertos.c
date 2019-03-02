@@ -59,6 +59,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "message.h"
+#include "regulation.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,15 +79,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-static float Ts = 0.001; //Sampling period
-static float kp = 2.0;
-static float ki = 0.0;
-static int32_t error = 0;
-static float angle = 30.0;
-static uint32_t reference = 3952;
-
-static volatile int16_t count = 0;
-
 osThreadId Task3Handle;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -115,7 +107,7 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-
+	regulator_init();
   /* USER CODE END Init */
 
   /* Create the mutex(es) */
@@ -185,6 +177,7 @@ void RegulationTask(void const * argument)
 	for (;;)
 	{
 
+		regulator();
 //		count++;
 //		if(count == 800)
 //		{

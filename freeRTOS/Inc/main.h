@@ -79,10 +79,12 @@ osMutexId getUartMutex(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define PWM_MOTOR1_Pin GPIO_PIN_5
-#define PWM_MOTOR1_GPIO_Port GPIOA
-#define DIR_MOTOR1_Pin GPIO_PIN_6
-#define DIR_MOTOR1_GPIO_Port GPIOA
+#define MOUTER_PWM_Pin GPIO_PIN_5
+#define MOUTER_PWM_GPIO_Port GPIOA
+#define MOUTER_INB_Pin GPIO_PIN_6
+#define MOUTER_INB_GPIO_Port GPIOA
+#define MOUTER_INA_Pin GPIO_PIN_7
+#define MOUTER_INA_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

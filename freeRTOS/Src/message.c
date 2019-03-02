@@ -16,6 +16,9 @@
 #include "main.h"
 #include "message.h"
 #include "cmsis_os.h"
+#include "actuator.h"
+
+scara_t scara;
 
 #ifdef COMMUNICATION_UART
 
@@ -69,18 +72,21 @@ void message_read(void)
 
 void message_command_apply(void)
 {
-	float angle = 0;
+	double angle = 0;
+	char msg[20] = "";
 
 	if (strcmp(parsed[0], "SCARATEST") == 0)
 	{
-		if (strcmp(parsed[1], "MOTOR_OUT") == 0)
+		if (strcmp(parsed[1], "MOUTER") == 0)
 		{
-			angle = atof(parsed[2]);
+			angle = atof(parsed[2]); // @TODO Change atof
 
-//			snprintf(msg, sizeof(msg), "%.2f\n\r", angle);
-//			xSemaphoreTake(getUartMutex(), portMAX_DELAY);
-//			HAL_UART_Transmit(&huart2, msg, sizeof(msg), 10);
-//			xSemaphoreGive(getUartMutex());
+			pololu_set_reference(&(scara.motor_outer), SET_REFERENCE,(uint32_t) (MOUTER_D_TO_INC * angle));
+
+			snprintf(msg, sizeof(msg), "%.2f\n\r", angle);
+			xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+			HAL_UART_Transmit(&huart2, msg, sizeof(msg), 10);
+			xSemaphoreGive(getUartMutex());
 
 			// give command to regulator to start positioning
 			// give command to regulator to log data
