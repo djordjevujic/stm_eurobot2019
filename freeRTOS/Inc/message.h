@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "usart.h"
+#include "regulation.h"
 
 #define MESSAGE_MAX_LENGTH 	100 //MSG_MAX_NUM_OF_PARAMETERS * MSG_MAX_LENGTH_OF_PARAMETER
 #define MESSAGE_END_CH  		'\n'

@@ -5,10 +5,10 @@
  *      Author: djox
  */
 #include "actuator.h"
+#include "regulation.h"
 
-
-void pololu_set_reference(pololu_t* motor, uint8_t option, int32_t ref)
+void pololu_set_position(pololu_t* motor, float angle)
 {
-	if(option == MOUTER)
-		motor->reference = ref;
+	motor->position = (int32_t) (MOUTER_D_TO_INC * angle);
 }
+

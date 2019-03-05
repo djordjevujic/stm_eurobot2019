@@ -81,7 +81,8 @@ void message_command_apply(void)
 		{
 			angle = atof(parsed[2]); // @TODO Change atof
 
-			pololu_set_reference(&(scara.motor_outer), SET_REFERENCE,(uint32_t) (MOUTER_D_TO_INC * angle));
+			scara.motor_outer.reference = (int32_t) (MOUTER_D_TO_INC * angle);
+			scara.motor_outer.state = TEST;
 
 			snprintf(msg, sizeof(msg), "%.2f\n\r", angle);
 			xSemaphoreTake(getUartMutex(), portMAX_DELAY);

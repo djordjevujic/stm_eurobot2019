@@ -26,14 +26,12 @@
 #define DIRECTION_CW 1
 #define DIRECTION_CCW 0
 
-#define DEFAULT_ENC_COUNTER_VALUE 20000 /* This value will be initialised to encoder timer every time after reading increments */
+#define DEFAULT_ENC_COUNTER_VALUE 20000U /* This value will be initialised to encoder timer every time after reading increments */
 
-// Unicate constant for each motor
+// Unicate constants for each motor
 #define MOUTER 1 // Outer motor of scara
-
-// Outer motor configuration
-#define MOUTER_D_TO_INC 9.977333
-#define MOUTER_INC_TO_D 0.1002271816
+#define MOUTER_CW_MAX 90.0f
+#define MOUTER_CCW_MAX -90.0f
 
 #define SET_REFERENCE 1
 
@@ -41,7 +39,9 @@ typedef enum pololuState {
 	IDLE,
 	STOP,
 	GOING_TO_POS,
-	CALIBRATING
+	TEST,
+	CALIBRATING,
+	OUT_OF_POS
 }pololuState;
 
 /*
@@ -54,14 +54,15 @@ typedef struct pololu_t
 	volatile int32_t reference;
 	volatile uint8_t direction;
 	volatile uint8_t prev_direction;
-	volatile uint16_t u;
+	volatile uint8_t changing_dir_flag;
 	uint16_t INA_Pin;
 	uint16_t INB_Pin;
 	GPIO_PinState INA_State;
 	GPIO_PinState INB_State;
 
 	pololuState state;
-	TIM_HandleTypeDef* timer;
+	TIM_HandleTypeDef* timer_enc;
+	TIM_HandleTypeDef* timer_pwm;
 }pololu_t;
 
 typedef struct scara
@@ -69,7 +70,8 @@ typedef struct scara
 	pololu_t motor_outer;
 }scara_t;
 
-void pololu_set_reference(pololu_t* motor, uint8_t option, int32_t ref);
+void pololu_set_position(pololu_t* motor, float angle);
+
 
 
 #endif /* ACTUATOR_H_ */

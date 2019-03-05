@@ -60,6 +60,7 @@
 #include "usart.h"
 #include "message.h"
 #include "regulation.h"
+#include "limit_switch.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,9 +83,9 @@
 osThreadId Task3Handle;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
-osThreadId Task2Handle;
 osThreadId MessageReadTaskHandle;
 osThreadId RegDataSendTaskHandle;
+osThreadId LimitSwitchTaskHandle;
 osMutexId UartMutexHandle;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -94,9 +95,9 @@ void threadMessageRead(void const * argument);
 /* USER CODE END FunctionPrototypes */
 
 void RegulationTask(void const * argument);
-void StartTask2(void const * argument);
 void threadMessageRead(void const * argument);
-void StartTask04(void const * argument);
+void TestDataSend(void const * argument);
+void LimitSwitchEXINT(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -129,25 +130,23 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, RegulationTask, osPriorityNormal, 0, 128);
+  osThreadDef(defaultTask, RegulationTask, osPriorityNormal, 0, 256);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* definition and creation of Task2 */
-  osThreadDef(Task2, StartTask2, osPriorityLow, 0, 128);
-  Task2Handle = osThreadCreate(osThread(Task2), NULL);
 
   /* definition and creation of MessageReadTask */
   osThreadDef(MessageReadTask, threadMessageRead, osPriorityIdle, 0, 256);
   MessageReadTaskHandle = osThreadCreate(osThread(MessageReadTask), NULL);
 
   /* definition and creation of RegDataSendTask */
-  osThreadDef(RegDataSendTask, StartTask04, osPriorityIdle, 0, 1024);
+  osThreadDef(RegDataSendTask, TestDataSend, osPriorityIdle, 0, 512);
   RegDataSendTaskHandle = osThreadCreate(osThread(RegDataSendTask), NULL);
+
+  /* definition and creation of LimitSwitchTask */
+  osThreadDef(LimitSwitchTask, LimitSwitchEXINT, osPriorityHigh, 0, 128);
+  LimitSwitchTaskHandle = osThreadCreate(osThread(LimitSwitchTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	osThreadDef(Task3, Thread3, osPriorityIdle, 0, 128);
-	Task3Handle = osThreadCreate(osThread(Task3), NULL);
 
   /* USER CODE END RTOS_THREADS */
 
@@ -171,6 +170,9 @@ void RegulationTask(void const * argument)
 	const TickType_t xFrequency = 1;
 
 	uint8_t txData[20] = "Hello from Thread1\r\n";
+
+	//__HAL_TIM_SetCompare(&htim2, TIM_CHANNEL_1, 0); //@NOTE: Check channel if changing board
+
 
 	xLastWakeTime = xTaskGetTickCount();
 	/* Infinite loop */
@@ -197,31 +199,6 @@ void RegulationTask(void const * argument)
   /* USER CODE END RegulationTask */
 }
 
-/* USER CODE BEGIN Header_StartTask2 */
-/**
- * @brief Function implementing the Task2 thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartTask2 */
-void StartTask2(void const * argument)
-{
-  /* USER CODE BEGIN StartTask2 */
-
-	uint8_t txData[20] = "Hello from Thread2\r\n";
-
-	for (;;)
-	{
-		/*
-		 xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
-		 HAL_UART_Transmit(&huart2, txData, 20, 5);
-		 xSemaphoreGive(UartMutexHandle);
-		 */
-		osDelay(1000);
-	}
-  /* USER CODE END StartTask2 */
-}
-
 /* USER CODE BEGIN Header_threadMessageRead */
 /**
 * @brief Function implementing the MessageReadTask thread.
@@ -233,58 +210,74 @@ void threadMessageRead(void const * argument)
 {
   /* USER CODE BEGIN threadMessageRead */
   /* Infinite loop */
-  volatile float angle = 0.0;
-  char exStr[10] = "720.0";
+
 	for(;;)
   {
 		message_read();
+		//osDelay(1000);
   }
   /* USER CODE END threadMessageRead */
 }
 
-/* USER CODE BEGIN Header_StartTask04 */
+/* USER CODE BEGIN Header_TestDataSend */
 /**
 * @brief Function implementing the RegDataSendTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask04 */
-void StartTask04(void const * argument)
+/* USER CODE END Header_TestDataSend */
+void TestDataSend(void const * argument)
 {
-  /* USER CODE BEGIN StartTask04 */
+  /* USER CODE BEGIN TestDataSend */
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(1000);
   }
-  /* USER CODE END StartTask04 */
+  /* USER CODE END TestDataSend */
+}
+
+/* USER CODE BEGIN Header_LimitSwitchEXINT */
+/**
+* @brief Function implementing the LimitSwitchTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LimitSwitchEXINT */
+void LimitSwitchEXINT(void const * argument)
+{
+  /* USER CODE BEGIN LimitSwitchEXINT */
+  /* Infinite loop */
+	char msg[25] = "Hello from LSWEXINT\n\r";
+  for(;;)
+  {
+    vTaskSuspend(NULL);
+		limit_switch_handle();
+    xSemaphoreTake(getUartMutex(), portMAX_DELAY);
+		HAL_UART_Transmit(&huart2, msg, sizeof(msg), 5);
+		xSemaphoreGive(getUartMutex());
+  }
+  /* USER CODE END LimitSwitchEXINT */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-void Thread3(void const * argument)
-{
-
-	uint8_t txData[20] = "Hello from Thread3\r\n";
-
-	for (;;)
-	{
-		/*
-		 xSemaphoreTake(UartMutexHandle, portMAX_DELAY);
-		 HAL_UART_Transmit(&huart2, txData, 20, 5);
-		 xSemaphoreGive(UartMutexHandle);
-		 */
-		osDelay(1000);
-	}
-
-	/* USER CODE END StartTask2 */
-}
-
 osMutexId getUartMutex(void)
 {
 	return UartMutexHandle;
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	BaseType_t checkIfYieldRequired;
+
+	//set_lsw_flag(GPIO_Pin);
+
+	checkIfYieldRequired = xTaskResumeFromISR(LimitSwitchTaskHandle);
+	portYIELD_FROM_ISR(checkIfYieldRequired);
+}
+
 /* USER CODE END Application */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
