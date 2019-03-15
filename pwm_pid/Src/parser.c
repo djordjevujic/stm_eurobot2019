@@ -7,9 +7,9 @@
 #include "../Inc/parser.h"
 
 uint8_t parsed_msg[MAX_NUM_OF_PARAMETERS][MAX_LENGTH_OF_PARAMETER] = { "", "",
-		"", "", "", "", "", "", "", "" };
+"", "", "", "", "", "", "", "" };
 static const uint8_t delim[2] = " ";
-static uint8_t* token = strtok(msg, delim);
+//static uint8_t* token = strtok(msg, delim);
 uint8_t num_of_params = 0;
 
 msg_parse(uint8_t* msg) {
@@ -18,13 +18,13 @@ msg_parse(uint8_t* msg) {
 
 	while (token) {
 
-		strcpy(parsed[num_of_params++], token);
+		//strcpy(parsed[num_of_params++], token);
 
 		token = strtok(NULL, " ");
 	}
 
-	if (strcmp(parsed[0], "test") == 0) {
+	//if (strcmp(parsed[0], "test") == 0) {
 
-	}
+	//}
 
 }

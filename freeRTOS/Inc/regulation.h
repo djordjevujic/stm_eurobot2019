@@ -31,5 +31,7 @@ void pololu_init(void);
 int32_t sabs32(int32_t i);
 void pololu_change_dir(pololu_t* motor);
 void pololu_set_dir(pololu_t* motor, uint8_t direction);
+void calibrate(pololu_t* motor, uint8_t motor_param);
+
 
 #endif /* REGULATION_H_ */

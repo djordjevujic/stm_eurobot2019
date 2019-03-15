@@ -33,6 +33,8 @@
 #define MOUTER_CW_MAX 90.0f
 #define MOUTER_CCW_MAX -90.0f
 
+#define MINNER 2
+
 #define SET_REFERENCE 1
 
 typedef enum pololuState {
@@ -52,11 +54,14 @@ typedef struct pololu_t
 	volatile int32_t position;
 	volatile int32_t error;
 	volatile int32_t reference;
+	uint32_t tim_pwm_channel;
+	uint16_t INA_Pin;
+	uint16_t INB_Pin;
 	volatile uint8_t direction;
 	volatile uint8_t prev_direction;
 	volatile uint8_t changing_dir_flag;
-	uint16_t INA_Pin;
-	uint16_t INB_Pin;
+	GPIO_TypeDef* INA_Port;
+	GPIO_TypeDef* INB_Port;
 	GPIO_PinState INA_State;
 	GPIO_PinState INB_State;
 

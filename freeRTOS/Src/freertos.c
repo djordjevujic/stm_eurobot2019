@@ -272,7 +272,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	BaseType_t checkIfYieldRequired;
 
-	//set_lsw_flag(GPIO_Pin);
+	set_lsw_flag(GPIO_Pin);
 
 	checkIfYieldRequired = xTaskResumeFromISR(LimitSwitchTaskHandle);
 	portYIELD_FROM_ISR(checkIfYieldRequired);

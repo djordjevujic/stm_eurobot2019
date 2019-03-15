@@ -43,10 +43,9 @@ void regulator(void)
 		break;
 	}
 
+		//For now, this is used in limit_switch.c
 	case CALIBRATING:
 	{
-		pololu_set_dir(&(scara.motor_outer), DIRECTION_CW);
-		calibrate();
 		break;
 	}
 
@@ -78,7 +77,7 @@ void regulator(void)
 			pololu_change_dir(&(scara.motor_outer));
 		}
 
-		__HAL_TIM_SetCompare(scara.motor_outer.timer_pwm, TIM_CHANNEL_1, u); //@NOTE: Check channel if changing board
+		__HAL_TIM_SetCompare(scara.motor_outer.timer_pwm, scara.motor_outer.tim_pwm_channel, u); //@NOTE: Check channel if changing board
 
 		scara.motor_outer.prev_direction = scara.motor_outer.direction;
 
@@ -108,40 +107,37 @@ int32_t reg_output_calc(pololu_t* motor, float kp, float ki, float kd)
 	return u;
 }
 
-void calibrate()
+void calibrate(pololu_t* motor, uint8_t motor_param)
 {
 	// Start calibration
 	// MOUTER PWM
-	// If switches are not pressed
-	/*	if(HAL_GPIO_ReadPin(MOUTER_LSW_CW_GPIO_Port, MOUTER_LSW_CW_Pin) == 0
-	 && HAL_GPIO_ReadPin(MOUTER_LSW_CCW_GPIO_Port, MOUTER_LSW_CCW_Pin) == 0)
-	 __HAL_TIM_SetCompare(scara.motor_outer.timer_pwm, TIM_CHANNEL_1, CALIBRATING_PWM); //@NOTE: Check channel if changing board
-	 else
-	 {
-
-	 }*/
-	if (HAL_GPIO_ReadPin(MOUTER_LSW_CW_GPIO_Port, MOUTER_LSW_CW_Pin) == GPIO_PIN_SET)
+	if (motor_param == MOUTER)
 	{
-		pololu_set_position(&(scara.motor_outer), MOUTER_CW_MAX);
-		pololu_set_dir(&(scara.motor_outer),DIRECTION_CCW);
-		scara.motor_outer.state = IDLE;
+		if (HAL_GPIO_ReadPin(MOUTER_LSW_CW_GPIO_Port, MOUTER_LSW_CW_Pin) == GPIO_PIN_SET)
+		{
+			pololu_set_position(motor, MOUTER_CW_MAX); // TODO Test this
+			pololu_set_dir(motor, DIRECTION_CCW);
+			motor->state = IDLE;
+		}
+
+		else if (HAL_GPIO_ReadPin(MOUTER_LSW_CCW_GPIO_Port, MOUTER_LSW_CCW_Pin) == GPIO_PIN_SET)
+		{
+			pololu_set_position(motor, MOUTER_CCW_MAX);
+			pololu_set_dir(motor, DIRECTION_CW);
+			motor->state = IDLE;
+		}
+
+		// If motor is not on any LSW, go in one direction
+		// When motor reaches LSW, it is handled by extern interrupt.
+		// See function limit_switch_handle() in limit_switch.c
+		else
+		{
+			pololu_set_dir(motor, DIRECTION_CW);
+			__HAL_TIM_SetCompare(motor->timer_pwm, motor->tim_pwm_channel, CALIBRATING_PWM); //@NOTE: Check channel if changing board
+		}
 	}
 
-	else if(HAL_GPIO_ReadPin(MOUTER_LSW_CCW_GPIO_Port, MOUTER_LSW_CCW_Pin) == GPIO_PIN_SET)
-	{
-		pololu_set_position(&(scara.motor_outer), MOUTER_CCW_MAX);
-		pololu_set_dir(&(scara.motor_outer),DIRECTION_CW);
-		scara.motor_outer.state = IDLE;
-	}
-
-	// If motor is not on any LSW, go in one direction
-	// When motor reaches LSW, it is handled by extern interrupt.
-	// See function limit_switch_handle() in limit_switch.c
-	else
-	{
-		pololu_set_dir(&(scara.motor_outer),DIRECTION_CW);
-		__HAL_TIM_SetCompare(scara.motor_outer.timer_pwm, TIM_CHANNEL_1, CALIBRATING_PWM); //@NOTE: Check channel if changing board
-	}
+	// else if (motor_param = MINNER) .......
 }
 
 void pololu_init(void)
@@ -160,17 +156,18 @@ void pololu_init(void)
 	scara.motor_outer.changing_dir_flag = 0;
 	scara.motor_outer.INA_State = GPIO_PIN_RESET;
 	scara.motor_outer.INB_State = GPIO_PIN_SET;
+	scara.motor_outer.INA_Port = MOUTER_INA_GPIO_Port;
+	scara.motor_outer.INB_Port = MOUTER_INB_GPIO_Port;
+	scara.motor_outer.tim_pwm_channel = TIM_CHANNEL_1;
 
 // Clockwise: INA->HIGH, INB->LOW
-	HAL_GPIO_WritePin(GPIOA, scara.motor_outer.INA_Pin, scara.motor_outer.INA_State); // @NOTE Check port if changing board
-	HAL_GPIO_WritePin(GPIOA, scara.motor_outer.INB_Pin, scara.motor_outer.INB_State); //@NOTE Check port if changing board
+	HAL_GPIO_WritePin(scara.motor_outer.INA_Port, scara.motor_outer.INA_Pin, scara.motor_outer.INA_State); // @NOTE Check port if changing board
+	HAL_GPIO_WritePin(scara.motor_outer.INB_Port, scara.motor_outer.INB_Pin, scara.motor_outer.INB_State); //@NOTE Check port if changing board
 
 	__HAL_TIM_SET_COUNTER(scara.motor_outer.timer_enc, DEFAULT_ENC_COUNTER_VALUE);
-
 }
 
 #define BRAKING_INTERVAL 10 //Example: 10 * 1ms = 10 ms
-
 
 // TODO Move to actuator.c
 void pololu_set_dir(pololu_t* motor, uint8_t direction)
@@ -189,8 +186,19 @@ void pololu_set_dir(pololu_t* motor, uint8_t direction)
 		motor->INB_State = GPIO_PIN_RESET;
 	}
 
-	HAL_GPIO_WritePin(GPIOA, motor->INA_Pin, motor->INA_State); // @NOTE Check port if changing board
-	HAL_GPIO_WritePin(GPIOA, motor->INB_Pin, motor->INB_State); //@NOTE Check port if changing board
+	HAL_GPIO_WritePin(motor->INA_Port, motor->INA_Pin, motor->INA_State); // @NOTE Check port if changing board
+	HAL_GPIO_WritePin(motor->INB_Port, motor->INB_Pin, motor->INB_State); //@NOTE Check port if changing board
+}
+
+void pololu_stop(pololu_t* motor)
+{
+	motor->INA_State = GPIO_PIN_RESET;
+	motor->INB_State = GPIO_PIN_RESET;
+
+	__HAL_TIM_SetCompare(motor->timer_pwm, motor->tim_pwm_channel, 0); //@NOTE: Check channel if changing board
+	HAL_GPIO_WritePin(motor->INA_Port, motor->INA_Pin, motor->INA_State); // @NOTE Check port if changing board
+	HAL_GPIO_WritePin(motor->INB_Port, motor->INB_Pin, motor->INB_State); //@NOTE Check port if changing board
+//HAL_GPIO_WritePin()
 }
 
 // TODO Move to actuator.c
@@ -228,8 +236,8 @@ void pololu_change_dir(pololu_t* motor)
 		motor->changing_dir_flag = 0;
 	}
 
-	HAL_GPIO_WritePin(GPIOA, motor->INA_Pin, motor->INA_State); // @NOTE Check port if changing board
-	HAL_GPIO_WritePin(GPIOA, motor->INB_Pin, motor->INB_State); //@NOTE Check port if changing board
+	HAL_GPIO_WritePin(motor->INA_Port, motor->INA_Pin, motor->INA_State); // @NOTE Check port if changing board
+	HAL_GPIO_WritePin(motor->INB_Port, motor->INB_Pin, motor->INB_State); //@NOTE Check port if changing board
 }
 
 int32_t sabs32(int32_t i)

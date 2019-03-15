@@ -93,6 +93,13 @@ void message_command_apply(void)
 			// give command to regulator to log data
 		}
 	}
+	if (strcmp(parsed[0], "CALIBRATE") == 0)
+	{
+		scara.motor_outer.state = CALIBRATING;
+		calibrate(&(scara.motor_outer), MOUTER);
+
+		// TODO add more motors later
+	}
 }
 
 // Parsing message to words, and putting parsed words into variable parsed[][]

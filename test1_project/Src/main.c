@@ -46,7 +46,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,7 +117,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);  // sa ovim startujes tajmer
 
-/*
+
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
 
 
@@ -127,7 +127,7 @@ int main(void)
 
   while(HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin));
   __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 1000);
-  */
+
 
   //Encoder
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_1);
